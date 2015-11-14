@@ -1,0 +1,69 @@
+<h2><%= @total_count %> selections </h2>
+
+<%= form_tag( root_path, method: "get") do %>
+
+  <%= select_tag :sector, 
+    options_for_select( get_sectors(), @sector), 
+    onchange: "this.form.submit();"
+  %>  
+
+  <%= select_tag :industry, 
+    options_for_select( get_industries(@sector), @industry), 
+    onchange: "this.form.submit();"
+  %>
+  
+  <%= select_tag :mode, 
+    options_for_select( Stock::SUPPORTED_MODES, @display_mode ), 
+    onchange: "this.form.submit();"
+  %>
+  
+  <%= select_tag :current_page, 
+    options_for_select( get_pages(@page_count), @current_page ), 
+    onchange: "this.form.submit();"
+  %>  
+
+<% end %>
+
+<table class="table table-fixed-header">
+  <thead class="header">
+    <tr>
+      <th>
+        #
+      </th>
+      <% Stock::DISPLAY_ATTRIBUTES.each do |key| %>
+        <th>
+          <%= key %>
+        </th>
+      <% end %>
+    </tr>    
+  </thead>
+  <tbody>
+    <% @stocks.each_with_index do |stock, index| %>
+      <tr>
+        <td >
+          <%=index + 1 %>
+
+        </td>
+        <% display_data = stock.to_params %>
+        <% display_data.keys.each do |key| %>
+          <td class="<%=get_color(key) %>">
+            <% if Stock::URL_ATTRIBUTES.include? key.to_s %>
+              <a href="<%= display_data[key] %>" target="_blank" >
+                <%= display_data[key] %>
+              </a>
+
+            <% elsif Stock::BIG_NUMBER_ATTRIBUTES.include? key.to_s%>
+              <%= number_with_delimiter(display_data[key], :delimiter => ',') %>
+
+            <% else %>
+              <%= display_data[key] %>
+            <% end %>
+            
+          </td>
+        <% end %>
+      </tr>
+    <% end %>    
+  </tbody>
+</table>
+
+<scripts>
