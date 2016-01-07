@@ -1,5 +1,7 @@
 class Stock < ActiveRecord::Base
 
+  after_validation :compute_yields
+
   INDUSTRY_NO_FILTER = "All industries"
   SECTOR_NO_FILTER = "All sectors"
   PER_PAGE = 50
@@ -40,20 +42,21 @@ class Stock < ActiveRecord::Base
     'peg_ratio',
     'current_ratio',
     'profit_margin',
-    'market_cap_str',    
+    'market_cap',    
+    'yield_num_years',    
+    'free_cashflow_dividend_coverage',
+    'yield_consistency',      
+    'avg_yield_percentage',
+    'five_year_avg_yield',    
+    'forward_annual_yield',
+    'trailing_annual_yield',
     'fify_two_week_high',
     'fify_two_week_low',
     'total_equity_5',
     'total_equity_4',
     'total_equity_3',
     'total_equity_2',
-    'total_equity_1',
-    'yield_num_years',    
-    'yield_consistency',      
-    'avg_yield_percentage',
-    'five_year_avg_yield',    
-    'forward_annual_yield',
-    'trailing_annual_yield',
+    'total_equity_1',    
     'exchange'
   ]
 
@@ -67,11 +70,12 @@ class Stock < ActiveRecord::Base
     'peg_ratio',
     'current_ratio',
     'profit_margin',
-    'market_cap_str'    
+    'market_cap'    
   ]
 
   YEILD_COL = [
     'yield_num_years',
+    'free_cashflow_dividend_coverage',
     'avg_yield_percentage',
     'yield_consistency',
     'five_year_avg_yield',    
@@ -94,7 +98,8 @@ class Stock < ActiveRecord::Base
     'total_equity_4',
     'total_equity_3',
     'total_equity_2',
-    'total_equity_1'    
+    'total_equity_1',
+    'market_cap'
   ]
 
   URL_ATTRIBUTES = [
@@ -215,8 +220,31 @@ class Stock < ActiveRecord::Base
 
     yield_factor = 0
     yield_factor = avg_yield_percentage / 15 if avg_yield_percentage.present?
-    ( discount_factor * yield_factor * consistency_factor ).round( 2 )
+
+    free_cashflow_factor = free_cashflow_dividend_coverage
+
+    ( discount_factor * yield_factor * consistency_factor * free_cashflow_factor ).round( 2 )
   end
+
+  # Returns the free cash flow for the most recent quarter
+  def free_cashflow
+    fcf = 0
+    fcf += operating_activities_cashflow_4 if operating_activities_cashflow_4.present?
+    fcf += investing_activities_cashflow_4 if investing_activities_cashflow_4.present?
+    fcf
+  end
+
+  def free_cashflow_per_share
+    free_cashflow / outstanding_shares
+  end
+
+  def average_expected_dividend_per_share
+    price * avg_yield_percentage / 100
+  end
+
+  def free_cashflow_dividend_coverage
+    free_cashflow_per_share / average_expected_dividend_per_share
+  end  
 
   def to_params
     params = {}
@@ -239,10 +267,8 @@ class Stock < ActiveRecord::Base
     issued_years = Dividend.where(stock_id: id).distinct(:issue_year).pluck(:issue_year)
     return 0 if total_years == 0
     consistency = 1.0 * issued_years.size / total_years
-    update(
-      yield_consistency: consistency, 
-      yield_num_years: total_years
-    )
+    self.yield_consistency = consistency
+    self.yield_num_years = total_years
   end
 
   # Computes how consistent were the growth of the dividends
@@ -283,9 +309,7 @@ class Stock < ActiveRecord::Base
         end
       end
     }
-    update(
-      yield_growth_consistency: total_score * 1.0 / year_series.size
-    )    
+    self.yield_growth_consistency = total_score * 1.0 / year_series.size 
   end
 
   def compute_dividend_year_series
@@ -306,7 +330,8 @@ class Stock < ActiveRecord::Base
     total_years = divs.group_by(&:issue_year).keys.size
     avg_amount = total_amount / total_years
     avg_yield_percentage = ( avg_amount / price ) * 100
-    update(avg_yield_amount: avg_amount, avg_yield_percentage: avg_yield_percentage)
+    self.avg_yield_amount = avg_amount
+    self.avg_yield_percentage = avg_yield_percentage
   end
 
   # Computes the average yield for the past 5 years based on current price
@@ -319,7 +344,7 @@ class Stock < ActiveRecord::Base
     total_years = divs.group_by(&:issue_year).keys.size
     avg_amount = total_amount / total_years
     avg_yield_percentage = ( avg_amount / price ) * 100
-    update(five_year_avg_yield: avg_yield_percentage )    
+    self.five_year_avg_yield = avg_yield_percentage
   end
 
 end

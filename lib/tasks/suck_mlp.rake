@@ -31,7 +31,7 @@ namespace :db do
       stock.sector = StockFormatter.to_string(row["sector"])
       stock.industry = StockFormatter.to_string(row["industry"])
       stock.company = StockFormatter.to_string(row["company name"])
-      stock.market_cap = StockFormatter.to_market_cap(row["market cap"])
+      stock.market_cap = StockFormatter.to_non_shorthand(row["market cap"])
       stock.market_cap_str = row["market cap"]
       stock.price = StockFormatter.to_float(row["traded price"])
       stock.book_val = StockFormatter.to_float(row["book value"])

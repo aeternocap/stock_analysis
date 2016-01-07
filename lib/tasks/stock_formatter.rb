@@ -37,7 +37,7 @@ module StockFormatter
     #   Returns:
     #     float: 327660000
     #    
-    def to_market_cap(value_string)
+    def to_non_shorthand(value_string)
       return_float = 0
       if !value_string.nil? && value_string != "N/A"
         if value_string.include?("B")

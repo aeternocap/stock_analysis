@@ -1,0 +1,70 @@
+class CreateStockImportLog < ActiveRecord::Migration
+  def change
+    create_table :stock_import_logs do |t|
+      t.string :sector
+      t.string :industry
+      t.string :company
+      t.float :price
+      t.float :book_val
+      t.float :price_book_ratio
+      t.float :pe_ratio
+      t.float :current_ratio
+      t.float :profit_margin
+      t.float :return_on_assets
+      t.float :return_on_equity
+      t.float :five_year_avg_yield
+      t.float :forward_annual_yield
+      t.float :trailing_annual_yield
+      t.float :fify_two_week_high
+      t.float :fify_two_week_low
+      t.string :exchange
+      t.string :company_url
+      t.string :company_stats_url
+      t.string :sector_url
+      t.string :industry_url
+      t.datetime :created_at
+      t.datetime :updated_at
+      t.string :symbol
+      t.float :total_equity_5
+      t.float :total_equity_4
+      t.float :total_equity_3
+      t.float :total_equity_2
+      t.float :total_equity_1
+      t.float :total_liability_5
+      t.float :total_liability_4
+      t.float :total_liability_3
+      t.float :total_liability_2
+      t.float :total_liability_1
+      t.float :total_asset_5
+      t.float :total_asset_4
+      t.float :total_asset_3
+      t.float :total_asset_2
+      t.float :total_asset_1
+      t.float :market_cap
+      t.string :market_cap_str
+      t.float :peg_ratio
+      t.float :price_sales_ratio
+      t.float :avg_yield_amount
+      t.float :avg_yield_percentage
+      t.float :yield_consistency
+      t.integer :yield_num_years
+      t.float :yield_growth_consistency
+      t.float :operating_activities_cashflow_4
+      t.float :operating_activities_cashflow_3
+      t.float :operating_activities_cashflow_2
+      t.float :operating_activities_cashflow_1
+      t.float :investing_activities_cashflow_4
+      t.float :investing_activities_cashflow_3
+      t.float :investing_activities_cashflow_2
+      t.float :investing_activities_cashflow_1
+      t.float :net_cashflow_4
+      t.float :net_cashflow_3
+      t.float :net_cashflow_2
+      t.float :net_cashflow_1
+      t.float :cash_per_share
+      t.float :total_debt_equity
+      t.float :outstanding_shares      
+      t.timestamps
+    end
+  end
+end
