@@ -91,15 +91,21 @@ namespace :db do
 
       stock_hash[:cash_per_share] = StockFormatter.to_float(row["Total Cash Per Share"]) 
 
-      stock_hash[:total_debt_equity] = StockFormatter.to_float(row["Total Debt/Equity"])
+      stock_hash[:total_debt_equity] = StockFormatter.to_float(row["Total Debt/Equity "])
       stock_hash[:outstanding_shares] = StockFormatter.to_non_shorthand(row["outstanding_shares"])
+
+      stock_hash[:diluted_eps] = StockFormatter.to_float(row["diluted_eps"])
+
+      stock_hash[:sec_id] = StockFormatter.to_float(row["SEC_ID"])
+      stock_hash[:is_active] = StockFormatter.is_recent_year?(row["cashflow_period_4"])
+
 
       stock = Stock.where(symbol: row["company_symbol"]).first
       
       total_count += 1      
       if stock.nil?
         total_added += 1
-        puts "#{total_count}: Created - #{stock.company}"
+        puts "#{total_count}: Created - #{row['company name']}"
         added_hashes << stock_hash
       else
         puts "#{total_count}: Updated - #{stock.company}"
@@ -113,18 +119,18 @@ namespace :db do
 
       all_hashes << stock_log_hash
 
-      if added_hashes.size > default_batch_size
+      if added_hashes.size >= default_batch_size
         Stock.create(added_hashes)   
         added_hashes = []
       end
 
-      if modified_hashes.size > default_batch_size
+      if modified_hashes.size >= default_batch_size
         Stock.update(update_id_hashes, modified_hashes)
         update_id_hashes = []
         modified_hashes = []
       end
 
-      if all_hashes.size > default_batch_size
+      if all_hashes.size >= default_batch_size
         StockImportLog.create(all_hashes)
         all_hashes = []
       end

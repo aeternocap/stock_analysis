@@ -1,6 +1,7 @@
 class Stock < ActiveRecord::Base
 
   after_validation :compute_yields
+  has_many :dividends, dependent: :destroy
 
   INDUSTRY_NO_FILTER = "All industries"
   SECTOR_NO_FILTER = "All sectors"
@@ -8,23 +9,18 @@ class Stock < ActiveRecord::Base
 
   SUPPORTED_MODES = [
     'no_filter',
-    'conservative',
-    'conservative_high_yield',    
+    'conservative_high_yield',
+    'income',    
+    'growth_stocks',
+    'turn_around',
     'market_leader',
-    'mode_1a',
-    'mode_1b',
-    'mode_2',
-    'mode_3',
-    'mode_4',
-    'mode_5',
-    'mode_6',
-    'mode_7',
     'mining_penny_stocks',
     'pe_ratio_lower_10',
     'pe_ratio_upper_10',
     'peg_ratio',   
     'cheap_picks',
-    'growth_stocks'
+
+    'warren'
   ]
 
   DISPLAY_ATTRIBUTES = [
@@ -33,23 +29,33 @@ class Stock < ActiveRecord::Base
     'company',
     'symbol',    
     'company_stats_url',
-    'attractive_x',
-    'price',
-    'book_val',
+    'attractive_growth',
     'price_book_ratio',
+    'total_debt_equity',
+    'return_on_equity', 
+    'doubling_factor',
+    'profit_margin',    
+    'return_on_assets',
     'price_sales_ratio',
     'pe_ratio',
-    'peg_ratio',
-    'current_ratio',
-    'profit_margin',
-    'market_cap',    
-    'yield_num_years',    
-    'free_cashflow_dividend_coverage',
-    'yield_consistency',      
+    'peg_ratio',    
+    'attractive_div',       
+    'free_cashflow_dividend_coverage',            
+    'yield_consistency',
+    'yield_num_years', 
+    'diluted_eps',
+    'free_cashflow_per_share',    
+    'latest_dividend_issue_amt',    
+    'average_dividend_per_quarter_amt',
+    'actual_yield_percentage',    
     'avg_yield_percentage',
     'five_year_avg_yield',    
     'forward_annual_yield',
     'trailing_annual_yield',
+    'price',
+    'book_val',
+    'current_ratio',
+    'market_cap',        
     'fify_two_week_high',
     'fify_two_week_low',
     'total_equity_5',
@@ -60,22 +66,36 @@ class Stock < ActiveRecord::Base
     'exchange'
   ]
 
-  RATIOS_COL = [
-    'attractive_x',
-    'price',
-    'book_val',
+  GROWTH_COL = [
+    'attractive_growth',    
     'price_book_ratio',
+    'profit_margin',        
+    'total_debt_equity',    
+    'return_on_equity',
+    'doubling_factor',
+    'return_on_assets',
     'price_sales_ratio',
     'pe_ratio',
-    'peg_ratio',
+    'peg_ratio'    
+  ]
+
+
+  RATIOS_COL = [
+    'price',
+    'book_val',
     'current_ratio',
-    'profit_margin',
     'market_cap'    
   ]
 
   YEILD_COL = [
+    'attractive_div',        
     'yield_num_years',
-    'free_cashflow_dividend_coverage',
+    'free_cashflow_dividend_coverage',    
+    'free_cashflow_per_share',
+    'diluted_eps',
+    'latest_dividend_issue_amt',    
+    'average_dividend_per_quarter_amt',
+    'actual_yield_percentage',
     'avg_yield_percentage',
     'yield_consistency',
     'five_year_avg_yield',    
@@ -109,16 +129,21 @@ class Stock < ActiveRecord::Base
   class << self
 
     def sectors
-      Stock.uniq.pluck(:sector).reject { |sector|
-        sector == nil ||
-        sector == "N/A"
-      }
+      Rails.cache.fetch("sectors", expires_in: 1.week) do
+        Stock.uniq.order( sector: :asc ).pluck(:sector).reject { |sector|
+          sector == nil ||
+          sector == "N/A"
+        }
+      end      
     end
 
     def industries(sector = nil)
-      query = Stock
-      query = query.where( sector: sector ) if !sector.nil?
-      query = query.uniq.pluck(:industry)
+      Rails.cache.fetch("industries/#{sector}", expires_in: 1.week) do
+        query = Stock
+        query = query.where( sector: sector ) if !sector.nil?
+        query = query.order( industry: :asc )
+        query = query.uniq.pluck(:industry)
+      end
     end
 
     def fetch_mode(mode, sector = nil, industry = nil, page = 0)
@@ -137,24 +162,8 @@ class Stock < ActiveRecord::Base
 
     def fetch_filter(mode, sector, industry)
       case mode
-      when "conservative"
-        FilterConservative.new(sector, industry)
-      when "mode_1a"
-        FilterMode1a.new(sector, industry)        
-      when "mode_1b"
-        FilterMode1b.new(sector, industry)        
-      when "mode_2"
-        FilterMode2.new(sector, industry)
-      when "mode_3"
-        FilterMode3.new(sector, industry)
-      when "mode_4"
-        FilterMode4.new(sector, industry)
-      when "mode_5"
-        FilterMode5.new(sector, industry)
-      when "mode_6"
-        FilterMode6.new(sector, industry)        
-      when "mode_7"
-        FilterMode7.new(sector, industry)
+      when "turn_around"
+        FilterTurnAround.new(sector, industry)
       when "growth_stocks"
         FilterGrowth.new(sector, industry)                
       when "market_leader"
@@ -167,6 +176,10 @@ class Stock < ActiveRecord::Base
         FilterConservativeHighYield.new(sector, industry)        
       when "cheap_picks"
         FilterCheapPicks.new(sector, industry)                
+      when "income"
+        FilterIncome.new(sector, industry)        
+      when 'warren'
+        FilterWarren.new(sector, industry)        
       when "no_filter"
         FilterBase.new(sector, industry)
       else
@@ -177,6 +190,7 @@ class Stock < ActiveRecord::Base
     def fetch_query(mode, sector = nil, industry = nil)
       filter = fetch_filter mode, sector, industry
       query = filter.fetch_query
+      query.includes(:dividends)
       query
     end
 
@@ -211,20 +225,27 @@ class Stock < ActiveRecord::Base
 
   end
 
-  def attractive_x
-    discount_factor = 0
-    discount_factor = 1 - price / book_val if price.present? && book_val.present?
+  def attractive_growth
+    return 0 if book_val.nil? || return_on_equity.nil? || total_debt_equity.nil?
+    pb_ratio = price / book_val 
+    return doubling_factor / pb_ratio / total_debt_equity
+  end
 
+  def doubling_factor
+    asset_double_years = 70 / return_on_equity
+  end
+
+  def attractive_div
     consistency_factor = 0
     consistency_factor = yield_num_years / 10.0 if yield_num_years.present?
 
     yield_factor = 0
-    yield_factor = avg_yield_percentage / 15 if avg_yield_percentage.present?
+    yield_factor = avg_yield_percentage / 100 if avg_yield_percentage.present?
 
     free_cashflow_factor = free_cashflow_dividend_coverage
 
-    ( discount_factor * yield_factor * consistency_factor * free_cashflow_factor ).round( 2 )
-  end
+    ( yield_factor * consistency_factor * free_cashflow_factor ).round( 2 )
+  end  
 
   # Returns the free cash flow for the most recent quarter
   def free_cashflow
@@ -235,15 +256,43 @@ class Stock < ActiveRecord::Base
   end
 
   def free_cashflow_per_share
-    free_cashflow / outstanding_shares
+    if free_cashflow.present? && outstanding_shares.present? && outstanding_shares > 0
+      ( free_cashflow / outstanding_shares ).round(2)
+    else
+      0
+    end
   end
 
-  def average_expected_dividend_per_share
-    price * avg_yield_percentage / 100
+  def latest_dividend_issue_amt
+    dividends.where(is_latest: 1).pluck(:amount).first.to_f
   end
+
+  def average_dividend
+    if avg_yield_percentage.present? && avg_yield_percentage > 0
+      price * avg_yield_percentage / 100
+    else
+      0
+    end
+  end
+
+  def actual_yield_percentage
+    ( latest_dividend_issue_amt * 4 / price * 100 ).round(2)
+  end
+
+  def average_dividend_per_quarter_amt
+    if avg_yield_percentage.present? && avg_yield_percentage > 0
+      ( price * avg_yield_percentage / 100 / 4 ).round(2)
+    else
+      0
+    end
+  end  
 
   def free_cashflow_dividend_coverage
-    free_cashflow_per_share / average_expected_dividend_per_share
+    if average_dividend > 0
+      free_cashflow_per_share / average_dividend_per_quarter_amt
+    else
+      0
+    end
   end  
 
   def to_params

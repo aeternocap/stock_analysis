@@ -5,6 +5,8 @@ module StocksHelper
       "ratios"
     elsif Stock::YEILD_COL.include?(col_name)
       "yield"
+    elsif Stock::GROWTH_COL.include?(col_name)
+      "growth"
     elsif Stock::EQUITY_COL.include? col_name
       "equity"
     end

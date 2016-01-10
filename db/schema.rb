@@ -11,7 +11,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20160107060013) do
+ActiveRecord::Schema.define(version: 20160110195442) do
 
   create_table "dividends", force: true do |t|
     t.integer  "stock_id"
@@ -20,6 +20,7 @@ ActiveRecord::Schema.define(version: 20160107060013) do
     t.datetime "created_at"
     t.datetime "updated_at"
     t.integer  "issue_year"
+    t.boolean  "is_latest"
   end
 
   add_index "dividends", ["stock_id"], name: "index_dividends_on_stock_id", using: :btree
@@ -99,6 +100,9 @@ ActiveRecord::Schema.define(version: 20160107060013) do
     t.float    "total_debt_equity"
     t.float    "outstanding_shares"
     t.integer  "stock_import_job_id"
+    t.float    "diluted_eps"
+    t.string   "sec_id"
+    t.boolean  "is_active"
   end
 
   add_index "stock_import_logs", ["stock_import_job_id", "symbol"], name: "fast_find", length: {"stock_import_job_id"=>nil, "symbol"=>191}, using: :btree
@@ -167,8 +171,13 @@ ActiveRecord::Schema.define(version: 20160107060013) do
     t.float    "cash_per_share"
     t.float    "total_debt_equity"
     t.float    "outstanding_shares"
+    t.float    "diluted_eps"
+    t.string   "sec_id"
+    t.boolean  "is_active"
   end
 
+  add_index "stocks", ["industry"], name: "industry_search", length: {"industry"=>191}, using: :btree
   add_index "stocks", ["symbol"], name: "index_stocks_on_symbol", length: {"symbol"=>191}, using: :btree
+  add_index "stocks", ["symbol"], name: "sym_search", length: {"symbol"=>191}, using: :btree
 
 end

@@ -14,7 +14,7 @@ class FilterConservativeHighYield < FilterBase
           ) / outstanding_shares
         ) / 
         (
-          ( avg_yield_percentage / 4 ) * price
+          ( avg_yield_percentage / 4 / 100 ) * price
         ) > 1.5
       ")
       .where("yield_consistency > 0.8")

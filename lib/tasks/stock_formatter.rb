@@ -63,5 +63,15 @@ module StockFormatter
       origin_ratio
     end
 
+    def is_recent_year?(raw_string)
+      return false if raw_string.nil?
+      begin
+         the_date = Date.parse raw_string
+         years_difference = Time.now.year - the_date.year
+         years_difference == 1 || years_difference == 0
+      rescue ArgumentError
+         false
+      end      
+    end
   end
 end

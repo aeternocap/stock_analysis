@@ -19,7 +19,19 @@ class FilterBase
   end
 
   def mode_filter(query)
-    query
+    query.order(" 
+        ( 1 - price / book_val ) * avg_yield_percentage / 15 * yield_num_years / 10 * (
+          (
+            operating_activities_cashflow_4 + 
+            investing_activities_cashflow_4
+          ) / outstanding_shares
+        ) / 
+        (
+          ( avg_yield_percentage / 4 ) * price
+        )
+        DESC")
+      .order("yield_consistency DESC")
+      .order("avg_yield_percentage DESC")    
   end
 
   def industry_filter(query)
